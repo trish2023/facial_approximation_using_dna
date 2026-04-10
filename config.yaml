@@ -1,0 +1,53 @@
+# ===========================================================================
+#  DNA-Based Facial Approximation — Data Source Configuration
+# ===========================================================================
+
+# --- Reference panels -------------------------------------------------------
+# Primary: 1000 Genomes Phase 3 (GRCh37, 2504 samples, 489 South Asian)
+# Downloaded via:  python scripts/download_reference_data.py
+reference_panels:
+  thousand_genomes_vcf_dir: "data/reference/1000g_vcf/"
+  thousand_genomes_sample_panel: "data/reference/1000g_panel.txt"
+
+  # IndiGenomes: individual-level SNP VCF not publicly available.
+  # Alu insertion VCF (structural variants only — not used in main pipeline):
+  indigenomes_alu_vcf: "data/raw/indigenomes/Indigen_Alu_final_geno10_all_22K.vcf"
+
+  # Indian allele frequencies queried from IndiGenomes + Ensembl:
+  # Generated via:  python scripts/query_indigenomes.py
+  indian_allele_frequencies: "data/reference/indian_allele_frequencies.tsv"
+
+# --- Phenotype prediction SNP lists -----------------------------------------
+snp_lists:
+  hirisplex_snps: "data/reference/hirisplex_s_snp_list.txt"
+  facial_morphology_snps: "data/reference/facial_morphology_gwas_snps.txt"
+
+# --- GWAS summary statistics ------------------------------------------------
+gwas:
+  summary_stats_dir: "<PATH_TO>/gwas_summary_stats/"
+  facial_traits:
+    - nose_shape
+    - face_width
+    - jaw_morphology
+    - lip_thickness
+    - brow_ridge
+
+# --- Ancestry & population info ---------------------------------------------
+ancestry:
+  superpopulation_codes:
+    - SAS   # South Asian
+    - EUR   # European (for model comparison)
+  pca_reference: "<PATH_TO>/reference/pca_reference_projections.tsv"
+
+# --- Model artefacts --------------------------------------------------------
+models:
+  hirisplex_weights: "models/hirisplex_weights.pkl"
+  morphology_model: "models/facial_morphology_model.pkl"
+  landmark_predictor: "models/shape_predictor_68_face_landmarks.dat"
+
+# --- Directories ------------------------------------------------------------
+directories:
+  raw_data: "data/raw/"
+  processed_data: "data/processed/"
+  reference_data: "data/reference/"
+  output: "outputs/"

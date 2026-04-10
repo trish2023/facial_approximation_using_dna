@@ -1,0 +1,23 @@
+{
+  "source": "1000 Genomes Phase 3 (GRCh37)",
+  "base_url": "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502",
+  "total_samples": 2504,
+  "super_populations": {
+    "AFR": 661,
+    "EAS": 504,
+    "EUR": 503,
+    "SAS": 489,
+    "AMR": 347
+  },
+  "sas_samples": 489,
+  "sas_populations": {
+    "GIH": 103,
+    "ITU": 102,
+    "STU": 102,
+    "PJL": 96,
+    "BEB": 86
+  },
+  "chromosomes_downloaded": [],
+  "panel_file": "C:\\Facial_Approximation_Using_Forensics\\data\\reference\\1000g_panel.txt",
+  "vcf_directory": "C:\\Facial_Approximation_Using_Forensics\\data\\reference\\1000g_vcf"
+}

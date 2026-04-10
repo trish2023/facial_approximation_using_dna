@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_metadata/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large data files — keep out of version control
+# (covers files at any depth under data/)
+data/**/*.vcf
+data/**/*.vcf.gz
+data/**/*.vcf.gz.tbi
+data/**/*.bcf
+data/**/*.tbi
+data/**/*.bed
+data/**/*.bim
+data/**/*.fam
+data/**/*.parquet
+data/**/*.hdf5
+data/**/*.tsv
+*.bam
+*.bai
+*.cram
+*.fasta
+*.fa
+*.fa.fai
+
+# Model artefacts
+models/*.pkl
+models/*.joblib
+models/*.h5
+models/*.dat
+
+# Outputs (regenerable)
+outputs/*.png
+outputs/*.pdf
+outputs/*.json
+
+# Secrets and credentials
+.env
+*.pem
