@@ -1,0 +1,68 @@
+# ---------------------------------------------------------------
+# DNA Facial Approximation Pipeline — Configuration
+# Update all placeholder paths before running any scripts.
+# ---------------------------------------------------------------
+
+paths:
+  # Input VCF of SNP genotypes for the subject(s) to predict
+  input_vcf: data/raw/sample.vcf.gz
+
+  # IndiGenomes population reference VCF (Indian ancestries)
+  # Download: https://www.igib.res.in/indigenomes/
+  indigenomes_vcf: data/raw/indigenomes/indigenomes.vcf.gz
+
+  # 1000 Genomes merged reference panel (used for ancestry inference / PCA)
+  # Recommended: SAS + EUR superpopulations, biallelic SNPs only
+  thousandg_panel: data/raw/1kg/1kg_SAS_EUR_merged.vcf.gz
+
+  # HIrisPlex-S SNP list with model coefficients
+  # 41 SNPs for eye/hair/skin colour prediction
+  # Download weights from: https://hirisplex.erasmusmc.nl/
+  hirisplex_snp_list: data/reference/hirisplex_41snps.csv
+
+  # Directory containing GWAS summary statistics files
+  # Expected format: one file per trait (e.g., nose_width.tsv, face_width.tsv)
+  gwas_sumstats_dir: data/raw/gwas/
+
+  # Directory for all pipeline outputs (composites, trait reports, plots)
+  output_dir: outputs/
+
+  # Directory for intermediate processed files (filtered VCFs, genotype matrices)
+  processed_dir: data/processed/
+
+  # Face template and landmark model files used by the renderer
+  face_template_dir: data/reference/face_templates/
+
+# ---------------------------------------------------------------
+# QC thresholds
+# ---------------------------------------------------------------
+qc:
+  min_genotype_call_rate: 0.95   # Drop SNPs with more than 5% missing calls
+  min_maf: 0.01                  # Minor allele frequency filter
+  hwe_pvalue_threshold: 1.0e-6   # Hardy-Weinberg equilibrium filter
+
+# ---------------------------------------------------------------
+# Ancestry inference
+# ---------------------------------------------------------------
+ancestry:
+  n_pca_components: 10           # PCs to compute for ancestry projection
+  reference_populations:         # Superpopulations to include from 1KG panel
+    - SAS
+    - EUR
+
+# ---------------------------------------------------------------
+# Trait prediction
+# ---------------------------------------------------------------
+prediction:
+  confidence_level: 0.95         # CI width for trait probability outputs
+  pigmentation_model: hirisplex_s
+  morphology_model: gwas_prs     # Polygenic risk score approach for morphology
+
+# ---------------------------------------------------------------
+# Rendering
+# ---------------------------------------------------------------
+rendering:
+  output_format: png             # png or svg
+  composite_width_px: 800
+  composite_height_px: 1000
+  annotate_confidence: true      # Overlay CI annotations on output image

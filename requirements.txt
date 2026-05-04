@@ -1,0 +1,25 @@
+# Genotype & VCF handling
+scikit-allel==1.3.8
+cyvcf2==0.30.28
+pysam==0.22.1
+
+# Data wrangling
+pandas==2.2.2
+numpy==1.26.4
+scipy==1.13.1
+
+# Machine learning
+scikit-learn==1.5.0
+
+# Computer vision & face rendering
+opencv-python==4.10.0.84
+dlib==19.24.4
+
+# Visualisation
+matplotlib==3.9.0
+seaborn==0.13.2
+
+# Utilities
+requests==2.32.3
+tqdm==4.66.4
+pyyaml==6.0.1
