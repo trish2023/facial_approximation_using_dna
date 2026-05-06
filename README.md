@@ -15,19 +15,22 @@ Forensic facial approximation from skeletal remains is routinely performed by ar
 ```
 VCF (SNP genotypes)
   │
-  ├─ 1. Quality control & ancestry inference
-  │     └─ PCA against 1000 Genomes + IndiGenomes
+  ├─ 1. Quality control & ancestry inference (COMPLETED)
+  │     ├─ PLINK QC & LD Pruning
+  │     ├─ PCA against 1000 Genomes (SAS vs EUR)
+  │     └─ Super-population classification & ANI/ASI breakdown via Random Forest
   │
-  ├─ 2. Pigmentation prediction
-  │     └─ HIrisPlex-S model → eye, hair, skin colour
+  ├─ 2. Pigmentation prediction (IN PROGRESS)
+  │     ├─ Extraction of HIrisPlex-S 41-SNPs with strand-flip handling (COMPLETED)
+  │     └─ HIrisPlex-S multinomial model → eye, hair, skin colour (TODO)
   │
-  ├─ 3. Facial morphology prediction
+  ├─ 3. Facial morphology prediction (TODO)
   │     └─ GWAS effect-size scoring → landmark displacements
   │
-  ├─ 4. Composite generation
+  ├─ 4. Composite generation (TODO)
   │     └─ Base face + landmark warping + pigmentation overlay
   │
-  └─ 5. Annotation & reporting
+  └─ 5. Annotation & reporting (TODO)
         └─ Confidence intervals, ancestry context, PDF report
 ```
 
@@ -38,54 +41,64 @@ VCF (SNP genotypes)
 ├── config.yaml              # Paths to all external data sources
 ├── data/
 │   ├── raw/                 # Original unmodified input files (VCFs, etc.)
-│   ├── processed/           # Cleaned, filtered, and transformed data
-│   └── reference/           # Reference panels, SNP lists, allele frequencies
-├── models/                  # Trained/serialized prediction models
-├── scripts/                 # Pipeline scripts (one per stage)
-├── notebooks/               # Exploratory Jupyter notebooks
-├── outputs/                 # Generated facial composites and reports
-├── docs/                    # Project documentation and references
-├── tests/                   # Unit and integration tests
-├── requirements.txt         # Python dependencies
-└── .gitignore
+│   ├── processed/           # Cleaned, filtered, and transformed data (PCA, subject VCFs)
+│   └── reference/           # Reference panels (1000G), SNP lists (HIrisPlex), allele frequencies
+├── models/                  # Trained models (Random Forest for ancestry)
+├── scripts/                 # Pipeline scripts (Data Prep, Clustering, ML, SNP extraction)
+├── outputs/                 # Generated plots, experiment reports, JSON inferences, and CSVs
+└── README.md
 ```
 
-## Quickstart
+## How to Run & Demo the Current Pipeline
 
+The current working pipeline covers Data Preparation, Ancestry Inference, and HIrisPlex SNP Extraction.
+
+### 1. Ancestry Inference & Population Structure
+
+**Prepare the Data (PCA via PLINK):**
 ```bash
-# 1. Clone and enter the repository
-git clone <repo-url>
-cd Facial_Approximation_Using_Forensics
-
-# 2. Create a virtual environment and install dependencies
-python -m venv .venv
-source .venv/bin/activate        # Linux/macOS
-.venv\Scripts\activate           # Windows
-pip install -r requirements.txt
-
-# 3. Edit config.yaml with paths to your local data sources
-
-# 4. Run the pipeline on a sample VCF
-python scripts/run_pipeline.py --vcf data/raw/sample.vcf.gz --out outputs/
+./scripts/pca_prep.sh
 ```
+*(Performs QC, LD Pruning, and calculates top 20 PCs on the 1000 Genomes dataset.)*
+
+**Run Clustering Experiments:**
+```bash
+python scripts/clustering_experiments.py
+python scripts/clustering_experiments_advanced.py
+```
+*(Generates t-SNE/UMAP plots and silhouette scores comparing K-Means and GMM across populations. Check `outputs/experiments_advanced/` for results.)*
+
+**Run Ancestry Prediction (Random Forest):**
+```bash
+python scripts/stage2_random_forest.py
+```
+*(Trains a Random Forest classifier on genomic dosages and predicts ancestry proportions (e.g., ANI/ASI) for a subject. Output is saved to `outputs/ancestry_stage2.json`.)*
+
+### 2. HIrisPlex Phenotype Preparation
+
+**Extract a Subject from the Merged VCF:**
+```bash
+python scripts/make_subject_vcf.py --sample HG01583
+```
+*(Scans the massive 1000G merged VCF using Python/gzip and quickly extracts only the 41 HIrisPlex SNPs for the specified subject into `data/processed/subject_hirisplex.vcf`.)*
+
+**Process Subject Dosages & Handle Strand Flips:**
+```bash
+python scripts/extract_hirisplex_snps.py data/processed/subject_hirisplex.vcf
+```
+*(Parses the subject VCF, maps alleles against the HIrisPlex template, corrects for Watson-Crick strand flips, checks coverage, and outputs `outputs/hirisplex_dosages.csv`.)*
 
 ## Key Data Sources
-
 
 | Source                                                       | Description                                       |
 | ------------------------------------------------------------ | ------------------------------------------------- |
 | [IndiGenomes](https://clingen.igib.res.in/indigen/)          | Whole-genome sequences of 1,029 healthy Indians   |
-| [1000 Genomes Phase 3](https://www.internationalgenome.org/) | Global reference panel (SAS super-population)     |
+| [1000 Genomes Phase 3](https://www.internationalgenome.org/) | Global reference panel (SAS + EUR super-populations) |
 | [HIrisPlex-S](https://hirisplex.erasmusmc.nl/)               | SNP set for eye, hair, and skin colour prediction |
 | GWAS Catalog                                                 | Summary statistics for facial morphology loci     |
-
 
 ## Requirements
 
 - Python 3.9+
-- System libraries: `libhts` (for pysam/cyvcf2), `dlib` prerequisites (cmake, libboost)
-- See `requirements.txt` for the full Python dependency list
-
-## License
-
-This project is intended for academic and forensic research purposes only.
+- `scikit-learn`, `numpy`, `pandas`, `matplotlib`, `seaborn`, `umap-learn`
+- System libraries: `plink` (1.9)
