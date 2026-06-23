@@ -9,10 +9,11 @@ Model details (Chaitanya et al. 2018 / Walsh et al. 2017)
 ----------------------------------------------------------
 * Three independent multinomial logistic regression models (eye, hair, skin).
 * Predictors: effect-allele dosage for each of the 41 HIrisPlex-S SNPs
-  (0 / 1 / 2 per SNP, NA → mean-imputed from present SNPs within that model).
+  (0 / 1 / 2 per SNP, NA → zero-imputed).
 * Linear predictor:  η_k = intercept_k + Σ_i β_{k,i} · dosage_i
-* Probabilities via softmax over all categories (reference category is the
-  implicit "0" from the last logit equation).
+* Probabilities via softmax (reference-category multinomial): for each model,
+  the category listed in _categories but absent from the free equations is
+  pinned to logit 0; all others compute eta_k = intercept_k + Σ beta_{k,i}·x_i.
 * Ordering of betas MUST match the 41-SNP order in hirisplex_41snps.csv /
   hirisplex_coefficients.json._snp_order.
 
@@ -170,9 +171,12 @@ class HIriPlexS:
 
         for model_key in ("eye_model", "hair_model", "skin_model"):
             model_data = self._coeff.get(model_key, {})
-            # Collect free equations (non-underscore keys)
-            equations = {k: v for k, v in model_data.items()
-                         if not k.startswith("_")}
+            # Collect free equations: top-level keys that don't start with '_'
+            # AND contain 'betas' (distinguishes equation dicts from metadata)
+            equations = {
+                k: v for k, v in model_data.items()
+                if not k.startswith("_") and isinstance(v, dict) and "betas" in v
+            }
 
             if not equations:
                 errors.append(f"[{model_key}] No free equations found.")
@@ -264,9 +268,11 @@ class HIriPlexS:
         categories_meta = model_data.get("_categories", [])
         note = model_data.get("_note", "")
 
-        # Free equations (non-underscore keys = all non-reference categories)
-        equations = {k: v for k, v in model_data.items()
-                     if not k.startswith("_")}
+        # Free equations: top-level keys that don't start with '_' AND have 'betas'
+        equations = {
+            k: v for k, v in model_data.items()
+            if not k.startswith("_") and isinstance(v, dict) and "betas" in v
+        }
 
         # ---- Step 1: resolve dosage vector, NA-impute ----
         raw_vals: list[Optional[float]] = []
@@ -283,13 +289,11 @@ class HIriPlexS:
                 "cannot run prediction."
             )
 
-        mean_dosage = sum(present_vals) / n_present
-
         final_dosages: list[float] = []
         imputed_rsids: list[str]   = []
         for i, v in enumerate(raw_vals):
             if v is None:
-                final_dosages.append(mean_dosage)
+                final_dosages.append(0.0)
                 imputed_rsids.append(self._snp_order[i])
             else:
                 final_dosages.append(v)
@@ -298,8 +302,7 @@ class HIriPlexS:
         warnings: list[str] = []
         if n_imputed > 0:
             warnings.append(
-                f"{n_imputed} SNP(s) were NA-imputed with mean dosage "
-                f"{mean_dosage:.4f}: {', '.join(imputed_rsids)}"
+                f"{n_imputed} SNP(s) were NA-imputed with zero: {', '.join(imputed_rsids)}"
             )
 
         # ---- Step 2: validate coefficients are numeric ----
@@ -371,6 +374,7 @@ class HIriPlexS:
             "n_present":        n_present,
             "n_imputed":        n_imputed,
             "imputed_rsids":    imputed_rsids,
+            "imputation_method": "zero",
             "warnings":         warnings,
         }
 
@@ -405,7 +409,7 @@ class HIriPlexS:
         """
         Predict hair colour probabilities.
 
-        Categories: blond, brown (reference), red, black.
+        Categories: brown, red, black; blond is the reference (eta=0, no betas entry).
 
         Parameters
         ----------
