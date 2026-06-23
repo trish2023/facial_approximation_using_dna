@@ -12,6 +12,7 @@ Workflow
    a. If the rsID is missing from the VCF → record NA, log affected trait model.
    b. If present, compute effect-allele dosage (0 / 1 / 2).
    c. Detect strand flips (complement alleles) and flip dosage accordingly.
+   d. Warn on ambiguous A/T and C/G SNPs where strand cannot be resolved.
 4. Write hirisplex_dosages.csv in template column order.
 5. Print a coverage report; raise ValueError if < 30 SNPs are present.
 
@@ -23,6 +24,7 @@ Usage
 import argparse
 import csv
 import gzip
+import json
 import logging
 import os
 import sys
@@ -41,6 +43,9 @@ MIN_SNPS_REQUIRED = 30
 
 # DNA complement map for strand-flip detection
 COMPLEMENT = {"A": "T", "T": "A", "C": "G", "G": "C"}
+
+# Ambiguous allele pairs: these look identical on either strand
+AMBIGUOUS_PAIRS = {frozenset({"A", "T"}), frozenset({"C", "G"})}
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -61,6 +66,11 @@ log = logging.getLogger("extract_hirisplex")
 def complement_allele(allele: str) -> str:
     """Return the Watson-Crick complement of a single-base allele."""
     return COMPLEMENT.get(allele.upper(), allele)
+
+
+def is_ambiguous_pair(allele_a: str, allele_b: str) -> bool:
+    """Check whether two alleles form an ambiguous (A/T or C/G) pair."""
+    return frozenset({allele_a.upper(), allele_b.upper()}) in AMBIGUOUS_PAIRS
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +113,44 @@ def parse_vcf(vcf_path: str) -> dict:
         alt   – ALT allele (str, first ALT only)
         gt    – genotype tuple, e.g. (0, 1)
     """
+    # 1. Scan headers to detect build version
+    build = None
+    with _open_vcf(vcf_path) as fh:
+        for line in fh:
+            if not line.startswith("##"):
+                break
+            line_lower = line.lower()
+            if "grch37" in line_lower or "hg19" in line_lower or "b37" in line_lower:
+                build = "grch37"
+                break
+            elif "grch38" in line_lower or "hg38" in line_lower:
+                build = "grch38"
+                break
+
+    if build:
+        log.info("Detected genome build from VCF headers: %s", build)
+    else:
+        log.info("Could not detect genome build from VCF headers; will use fallback matching for both builds.")
+
+    # 2. Load coordinate mappings
+    positions_json_path = PROJECT_ROOT / "data" / "reference" / "hirisplex_positions.json"
+    grch37_map = {}
+    grch38_map = {}
+    if positions_json_path.exists():
+        with open(positions_json_path, "r") as fh:
+            data = json.load(fh)
+            for rs_key, info in data.items():
+                g37 = info.get("grch37")
+                if g37:
+                    c = str(g37["chrom"]).strip().lower().replace("chr", "")
+                    p = int(g37["pos"])
+                    grch37_map[(c, p)] = rs_key
+                g38 = info.get("grch38")
+                if g38:
+                    c = str(g38["chrom"]).strip().lower().replace("chr", "")
+                    p = int(g38["pos"])
+                    grch38_map[(c, p)] = rs_key
+
     variants: dict[str, dict] = {}
     with _open_vcf(vcf_path) as fh:
         for line in fh:
@@ -114,9 +162,27 @@ def parse_vcf(vcf_path: str) -> dict:
 
             chrom, pos, rsid, ref, alt = cols[0], cols[1], cols[2], cols[3], cols[4]
 
-            # Skip entries without an rsID
+            # Try coordinate fallback matching if rsid is missing or invalid
             if rsid == "." or not rsid.startswith("rs"):
-                continue
+                c_clean = chrom.strip().lower().replace("chr", "")
+                try:
+                    p_val = int(pos)
+                except ValueError:
+                    continue
+
+                matched_rsid = None
+                if build == "grch37":
+                    matched_rsid = grch37_map.get((c_clean, p_val))
+                elif build == "grch38":
+                    matched_rsid = grch38_map.get((c_clean, p_val))
+                else:
+                    matched_rsid = grch37_map.get((c_clean, p_val)) or grch38_map.get((c_clean, p_val))
+
+                if matched_rsid:
+                    rsid = matched_rsid
+                    log.info("Matched coordinate %s:%s to %s via coordinate lookup", chrom, pos, rsid)
+                else:
+                    continue
 
             # Use only the first ALT allele
             alt_alleles = alt.split(",")
@@ -168,7 +234,7 @@ def compute_dosage(
     vcf_entry: dict,
     effect_allele: str,
     rsid: str,
-) -> tuple[int, str, str, bool]:
+) -> tuple[int, str, str, bool, bool]:
     """
     Compute the dosage of the *effect allele* (0, 1, or 2).
 
@@ -178,32 +244,55 @@ def compute_dosage(
     ref_recorded  : str  (REF allele as used, possibly complemented)
     alt_recorded  : str  (ALT allele as used, possibly complemented)
     flipped       : bool (True if a strand flip was applied)
+    ambiguous     : bool (True if the SNP is an ambiguous A/T or C/G pair)
     """
     ref = vcf_entry["ref"]
     alt = vcf_entry["alt"]
     gt = vcf_entry["gt"]
 
     flipped = False
+    ambiguous = is_ambiguous_pair(ref, alt)
+
+    if ambiguous:
+        log.warning(
+            "Ambiguous A/T or C/G SNP %s (VCF %s/%s) — strand cannot be "
+            "resolved definitively; assuming forward strand.",
+            rsid, ref, alt,
+        )
 
     if _is_strand_flip(ref, alt, effect_allele):
-        # Flip to the complementary strand
+        # For ambiguous SNPs, strand flipping is unreliable, but we still
+        # attempt it and flag it for the user's attention.
         ref = complement_allele(ref)
         alt = complement_allele(alt)
         flipped = True
-        log.warning("Strand flip detected for %s: VCF %s/%s → complemented %s/%s",
-                     rsid, vcf_entry["ref"], vcf_entry["alt"], ref, alt)
+        log.warning(
+            "Strand flip detected for %s: VCF %s/%s → complemented %s/%s",
+            rsid, vcf_entry["ref"], vcf_entry["alt"], ref, alt,
+        )
+
+    # Verify that the effect allele matches one of the (possibly flipped) alleles
+    if effect_allele not in (ref, alt):
+        log.warning(
+            "Allele mismatch for %s: effect_allele=%s not found among "
+            "VCF alleles %s/%s (even after complement check). Recording dosage=0.",
+            rsid, effect_allele, ref, alt,
+        )
 
     # Dosage = number of copies of the effect allele in the genotype
-    allele_list = [ref] + [alt]  # index 0 = REF, index 1 = first ALT
+    allele_list = [ref, alt]  # index 0 = REF, index 1 = first ALT
     dosage = 0
     for idx in gt:
         if idx < len(allele_list) and allele_list[idx] == effect_allele:
             dosage += 1
         elif idx >= len(allele_list):
             # Multi-allelic index beyond what we handle
-            pass
+            log.debug(
+                "%s: genotype index %d exceeds allele list length; ignoring.",
+                rsid, idx,
+            )
 
-    return dosage, ref, alt, flipped
+    return dosage, ref, alt, flipped, ambiguous
 
 
 # ---------------------------------------------------------------------------
@@ -222,10 +311,11 @@ def extract(vcf_path: str, template_path: Path = TEMPLATE_CSV,
     variants = parse_vcf(vcf_path)
 
     # Step 3 & 4 — compute dosages
-    results = {}  # rsID → dosage (int or "NA")
+    results = {}  # rsID → dosage info dict
     present_count = 0
     missing_count = 0
     flip_count = 0
+    ambiguous_count = 0
     missing_by_trait: dict[str, list[str]] = {}
 
     for snp in snp_list:
@@ -248,7 +338,7 @@ def extract(vcf_path: str, template_path: Path = TEMPLATE_CSV,
             log.warning("MISSING %s — affects trait model(s): %s", rsid, trait)
             continue
 
-        dosage, ref_used, alt_used, flipped = compute_dosage(
+        dosage, ref_used, alt_used, flipped, ambiguous = compute_dosage(
             variants[rsid], effect, rsid
         )
         results[rsid] = {
@@ -260,6 +350,8 @@ def extract(vcf_path: str, template_path: Path = TEMPLATE_CSV,
         present_count += 1
         if flipped:
             flip_count += 1
+        if ambiguous:
+            ambiguous_count += 1
 
     # ----- Step 5 — write output CSV in template column order ---------------
     os.makedirs(output_path.parent, exist_ok=True)
@@ -288,6 +380,7 @@ def extract(vcf_path: str, template_path: Path = TEMPLATE_CSV,
     print(f"  Present in VCF         : {present_count}")
     print(f"  Missing                : {missing_count}")
     print(f"  Strand flips corrected : {flip_count}")
+    print(f"  Ambiguous (A/T, C/G)   : {ambiguous_count}")
     print(f"  Coverage               : {present_count / total * 100:.1f}%")
     print("-" * 60)
 

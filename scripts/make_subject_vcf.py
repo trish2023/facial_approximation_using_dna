@@ -12,6 +12,7 @@ Usage:
 import argparse
 import csv
 import gzip
+import json
 import os
 import sys
 from pathlib import Path
@@ -32,6 +33,39 @@ def load_target_rsids(template_path: Path) -> set[str]:
     return rsids
 
 
+def load_coordinate_mappings(json_path: Path):
+    """
+    Load hirisplex_positions.json and build coordinate lookups.
+    Returns two dictionaries:
+      grch37_map: (chrom, pos) -> rsid
+      grch38_map: (chrom, pos) -> rsid
+    """
+    grch37_map = {}
+    grch38_map = {}
+    
+    if not json_path.exists():
+        print(f"[WARNING] Coordinate mapping file not found at {json_path}")
+        return grch37_map, grch38_map
+
+    with open(json_path, "r") as fh:
+        data = json.load(fh)
+        for rsid, info in data.items():
+            # grch37
+            g37 = info.get("grch37")
+            if g37:
+                chrom = str(g37["chrom"]).strip().lower().replace("chr", "")
+                pos = int(g37["pos"])
+                grch37_map[(chrom, pos)] = rsid
+            # grch38
+            g38 = info.get("grch38")
+            if g38:
+                chrom = str(g38["chrom"]).strip().lower().replace("chr", "")
+                pos = int(g38["pos"])
+                grch38_map[(chrom, pos)] = rsid
+                
+    return grch37_map, grch38_map
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Extract a single-sample VCF with HIrisPlex SNPs only."
@@ -45,11 +79,15 @@ def main():
     args = parser.parse_args()
 
     target_rsids = load_target_rsids(TEMPLATE_CSV)
+    positions_json_path = PROJECT_ROOT / "data" / "reference" / "hirisplex_positions.json"
+    grch37_map, grch38_map = load_coordinate_mappings(positions_json_path)
+
     print(f"[INFO] Looking for {len(target_rsids)} HIrisPlex rsIDs")
+    print(f"[INFO] Loaded {len(grch37_map)} GRCh37 and {len(grch38_map)} GRCh38 coordinate mappings")
     print(f"[INFO] Reading {args.merged_vcf} ...")
 
     sample_idx = None
-    found = 0
+    found_rsids = set()
     lines_scanned = 0
 
     os.makedirs(Path(args.output).parent, exist_ok=True)
@@ -78,25 +116,49 @@ def main():
 
             lines_scanned += 1
             if lines_scanned % 5_000_000 == 0:
-                print(f"[INFO] Scanned {lines_scanned:,} variants, found {found}/{len(target_rsids)} ...")
+                print(f"[INFO] Scanned {lines_scanned:,} variants, found {len(found_rsids)}/{len(target_rsids)} ...")
 
-            # Quick check: does this line contain an rs ID we want?
             cols = line.rstrip("\n").split("\t")
-            rsid = cols[2]
-            if rsid not in target_rsids:
+            vcf_id = cols[2]
+            rsid = None
+
+            # 1. Try matching by VCF ID directly
+            if vcf_id in target_rsids:
+                rsid = vcf_id
+            else:
+                # 2. Try coordinate-based fallback matching
+                chrom = cols[0].strip().lower().replace("chr", "")
+                try:
+                    pos = int(cols[1])
+                except ValueError:
+                    continue
+
+                if (chrom, pos) in grch37_map:
+                    rsid = grch37_map[(chrom, pos)]
+                elif (chrom, pos) in grch38_map:
+                    rsid = grch38_map[(chrom, pos)]
+
+            if rsid is None:
                 continue
+
+            # Prevent duplicate lines for the same rsID in output
+            if rsid in found_rsids:
+                continue
+
+            # Rewrite VCF ID field to the resolved rsID
+            cols[2] = rsid
+            found_rsids.add(rsid)
 
             # Write: first 9 fixed columns + target sample column
             out_cols = cols[:9] + [cols[sample_idx]]
             fout.write("\t".join(out_cols) + "\n")
-            found += 1
-            print(f"[OK] Found {rsid} ({found}/{len(target_rsids)})")
+            print(f"[OK] Found {rsid} via {'coordinate' if vcf_id != rsid else 'rsID'} matching ({len(found_rsids)}/{len(target_rsids)})")
 
-            if found == len(target_rsids):
+            if len(found_rsids) == len(target_rsids):
                 print("[INFO] All HIrisPlex SNPs found — stopping early.")
                 break
 
-    print(f"\n[DONE] Wrote {found} variants to {args.output}")
+    print(f"\n[DONE] Wrote {len(found_rsids)} variants to {args.output}")
     print(f"       Scanned {lines_scanned:,} total variant lines.")
 
 
