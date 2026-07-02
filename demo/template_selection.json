@@ -1,0 +1,11 @@
+{
+  "template_path": "data/reference/face_templates/indoaryan_male.jpg",
+  "template_name": "indoaryan_male",
+  "ancestry_label": "IndoAryan-proxy",
+  "sex": "male",
+  "metadata": {
+    "source": "Gemini AI",
+    "license": "Research Use",
+    "notes": "Neutral frontal face template"
+  }
+}

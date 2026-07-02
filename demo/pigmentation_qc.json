@@ -1,0 +1,13 @@
+{
+  "eye_colour": "brown",
+  "hair_colour": "blond",
+  "presentation_hair_colour": "brown",
+  "skin_tone": "dark_black",
+  "watermark_added": true,
+  "eye_mask_area": 94,
+  "hair_mask_area": 153717,
+  "skin_mask_area": 67045,
+  "mean_colour_shift": 31.8176,
+  "maximum_colour_shift": 57.9483,
+  "final_colourised_face": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/final_colourised_face.png"
+}

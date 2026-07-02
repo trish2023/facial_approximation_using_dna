@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DNA Facial Approximation Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Local forensic demo workspace</p>
+          <h1>DNA facial approximation dashboard</h1>
+          <p class="lede">
+            Run the pipeline from a VCF, watch every stage complete, and inspect the
+            evidence trail without leaving the page.
+          </p>
+        </div>
+        <div class="hero-card">
+          <div class="hero-card__label">Current run</div>
+          <div id="run-status" class="hero-card__value">Idle</div>
+          <div id="run-meta" class="hero-card__meta">No active pipeline.</div>
+        </div>
+      </header>
+
+      <section class="controls-grid">
+        <article class="panel panel--controls">
+          <div class="panel__header">
+            <div>
+              <p class="panel__eyebrow">Run setup</p>
+              <h2>Choose input and launch</h2>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>Input VCF</span>
+              <select id="vcf-select"></select>
+            </label>
+            <label>
+              <span>Sample ID</span>
+              <input id="sample-input" type="text" placeholder="HG01583" />
+            </label>
+            <label>
+              <span>Output folder</span>
+              <input id="output-input" type="text" value="outputs" />
+            </label>
+            <label class="checkbox-row">
+              <input id="skip-stage2" type="checkbox" />
+              <span>Skip Stage 2 ancestry subclassification</span>
+            </label>
+          </div>
+          <div class="button-row">
+            <button id="run-button" class="button button--primary">Run pipeline</button>
+            <button id="dry-run-button" class="button button--secondary">Dry run</button>
+            <button id="refresh-button" class="button button--ghost">Refresh</button>
+          </div>
+          <div class="hint">
+            Use the merged VCF if you want the dashboard to extract a demo subject automatically.
+          </div>
+        </article>
+
+        <article class="panel panel--summary">
+          <div class="panel__header">
+            <div>
+              <p class="panel__eyebrow">Verification</p>
+              <h2>Results at a glance</h2>
+            </div>
+          </div>
+          <div class="summary-grid">
+            <div class="stat">
+              <span>Subject</span>
+              <strong id="subject-id">Unknown</strong>
+            </div>
+            <div class="stat">
+              <span>Reliability</span>
+              <strong id="reliability">-</strong>
+            </div>
+            <div class="stat">
+              <span>Final composite</span>
+              <strong id="final-exists">Missing</strong>
+            </div>
+            <div class="stat">
+              <span>QC report</span>
+              <strong id="qc-exists">Missing</strong>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel panel--wide">
+          <div class="panel__header">
+            <div>
+              <p class="panel__eyebrow">Pipeline</p>
+              <h2>Step-by-step execution</h2>
+            </div>
+            <div class="status-pill" id="overall-pill">Waiting</div>
+          </div>
+          <div id="stages" class="stages"></div>
+        </article>
+
+        <aside class="side-column">
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Live log</p>
+                <h2>Pipeline output</h2>
+              </div>
+            </div>
+            <pre id="log-tail" class="log-box"></pre>
+          </article>
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Final proof</p>
+                <h2>Composite preview</h2>
+              </div>
+            </div>
+            <div class="preview-grid">
+              <a id="preview-link" href="../outputs/final_composite.png" target="_blank" rel="noreferrer">
+                <img id="preview-image" alt="Final composite preview" />
+              </a>
+              <div class="preview-meta" id="preview-meta">No image yet.</div>
+            </div>
+          </article>
+        </aside>
+      </section>
+    </div>
+
+    <template id="stage-template">
+      <article class="stage-card">
+        <div class="stage-card__top">
+          <div>
+            <h3></h3>
+            <p></p>
+          </div>
+          <div class="stage-badge"></div>
+        </div>
+        <div class="stage-card__section">
+          <h4>Verification</h4>
+          <ul class="artifact-list"></ul>
+        </div>
+        <div class="stage-card__section">
+          <h4>Log excerpt</h4>
+          <pre class="stage-log"></pre>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

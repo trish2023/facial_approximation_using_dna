@@ -9,11 +9,10 @@ Model details (Chaitanya et al. 2018 / Walsh et al. 2017)
 ----------------------------------------------------------
 * Three independent multinomial logistic regression models (eye, hair, skin).
 * Predictors: effect-allele dosage for each of the 41 HIrisPlex-S SNPs
-  (0 / 1 / 2 per SNP, NA → zero-imputed).
+  (0 / 1 / 2 per SNP, NA → mean-imputed from present SNPs within that model).
 * Linear predictor:  η_k = intercept_k + Σ_i β_{k,i} · dosage_i
-* Probabilities via softmax (reference-category multinomial): for each model,
-  the category listed in _categories but absent from the free equations is
-  pinned to logit 0; all others compute eta_k = intercept_k + Σ beta_{k,i}·x_i.
+* Probabilities via softmax over all categories (reference category is the
+  implicit "0" from the last logit equation).
 * Ordering of betas MUST match the 41-SNP order in hirisplex_41snps.csv /
   hirisplex_coefficients.json._snp_order.
 
@@ -289,11 +288,13 @@ class HIriPlexS:
                 "cannot run prediction."
             )
 
+        mean_dosage = sum(present_vals) / n_present
+
         final_dosages: list[float] = []
         imputed_rsids: list[str]   = []
         for i, v in enumerate(raw_vals):
             if v is None:
-                final_dosages.append(0.0)
+                final_dosages.append(mean_dosage)
                 imputed_rsids.append(self._snp_order[i])
             else:
                 final_dosages.append(v)
@@ -302,7 +303,8 @@ class HIriPlexS:
         warnings: list[str] = []
         if n_imputed > 0:
             warnings.append(
-                f"{n_imputed} SNP(s) were NA-imputed with zero: {', '.join(imputed_rsids)}"
+                f"{n_imputed} SNP(s) were NA-imputed with mean dosage "
+                f"{mean_dosage:.4f}: {', '.join(imputed_rsids)}"
             )
 
         # ---- Step 2: validate coefficients are numeric ----
@@ -374,7 +376,6 @@ class HIriPlexS:
             "n_present":        n_present,
             "n_imputed":        n_imputed,
             "imputed_rsids":    imputed_rsids,
-            "imputation_method": "zero",
             "warnings":         warnings,
         }
 
@@ -409,7 +410,7 @@ class HIriPlexS:
         """
         Predict hair colour probabilities.
 
-        Categories: brown, red, black; blond is the reference (eta=0, no betas entry).
+        Categories: blond, brown (reference), red, black.
 
         Parameters
         ----------

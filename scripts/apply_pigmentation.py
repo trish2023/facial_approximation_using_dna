@@ -11,11 +11,18 @@ import argparse
 import json
 import logging
 import math
+import os
 from pathlib import Path
 from typing import Any
 
 import cv2
+import matplotlib
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+os.environ.setdefault("MPLCONFIGDIR", str(Path("/tmp") / "codex-mplconfig"))
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -27,9 +34,16 @@ DEFAULT_LANDMARKS = PROCESSED_DIR / "template_landmarks.json"
 DEFAULT_REPORT = OUTPUT_DIR / "pigmentation_report.json"
 DEFAULT_OUTPUT = OUTPUT_DIR / "pigmentation_applied_face.png"
 DEFAULT_QC = OUTPUT_DIR / "pigmentation_qc.json"
+FINAL_COLOURISED_FACE = OUTPUT_DIR / "final_colourised_face.png"
 DEBUG_EYE_MASK = OUTPUT_DIR / "debug_eye_mask.png"
 DEBUG_HAIR_MASK = OUTPUT_DIR / "debug_hair_mask.png"
 DEBUG_SKIN_MASK = OUTPUT_DIR / "debug_skin_mask.png"
+EYE_MASK_OUTPUT = OUTPUT_DIR / "eye_mask.png"
+HAIR_MASK_OUTPUT = OUTPUT_DIR / "hair_mask.png"
+SKIN_MASK_OUTPUT = OUTPUT_DIR / "skin_mask.png"
+EYE_DEBUG_OUTPUT = OUTPUT_DIR / "eye_recolour_debug.png"
+HAIR_DEBUG_OUTPUT = OUTPUT_DIR / "hair_segmentation_debug.png"
+SKIN_DEBUG_OUTPUT = OUTPUT_DIR / "skin_tone_debug.png"
 
 # OpenCV is BGR-based, so all colour tables are stored in BGR order.
 COLOUR_CONFIG = {
@@ -45,17 +59,23 @@ COLOUR_CONFIG = {
         "red": {"bgr": (139, 60, 20), "strength": 0.46},
     },
     "skin": {
-        "pale": {"target_ita": 48.0, "strength": 0.12, "l_shift_cap": 4.0, "b_shift_cap": 3.0},
-        "light": {"target_ita": 39.0, "strength": 0.13, "l_shift_cap": 5.0, "b_shift_cap": 3.0},
-        "medium": {"target_ita": 29.0, "strength": 0.15, "l_shift_cap": 6.0, "b_shift_cap": 4.0},
-        "dark": {"target_ita": 15.0, "strength": 0.17, "l_shift_cap": 7.0, "b_shift_cap": 4.5},
-        "deep": {"target_ita": 4.0, "strength": 0.18, "l_shift_cap": 8.0, "b_shift_cap": 5.0},
+        "very_pale": {"target_ita": 66.0, "strength": 0.60, "l_shift_cap": 10.0, "b_shift_cap": 8.0},
+        "pale": {"target_ita": 42.0, "strength": 0.60, "l_shift_cap": 10.0, "b_shift_cap": 8.0},
+        "intermediate": {"target_ita": 20.0, "strength": 0.60, "l_shift_cap": 11.0, "b_shift_cap": 8.0},
+        "dark": {"target_ita": -10.0, "strength": 0.60, "l_shift_cap": 11.0, "b_shift_cap": 8.0},
+        "dark_black": {"target_ita": -42.0, "strength": 0.60, "l_shift_cap": 12.0, "b_shift_cap": 9.0},
     },
 }
 
 SKIN_TONE_ALIASES = {
-    "very_pale": "pale",
+    "very_pale": "very_pale",
     "very_light": "light",
+    "dark_to_black": "dark_black",
+    "dark_black": "dark_black",
+}
+
+HAIR_PRESENTATION_OVERRIDE = {
+    "blond": "brown",
 }
 
 EYE_IDS = {"left": list(range(36, 42)), "right": list(range(42, 48))}
@@ -289,6 +309,12 @@ def build_eyebrow_mask(landmarks: list[dict[str, float]], image_shape: tuple[int
     return refine_mask(mask, open_kernel=3, close_kernel=5, min_area=25)
 
 
+def build_skin_base_mask(landmarks: list[dict[str, float]], image_shape: tuple[int, int]) -> np.ndarray:
+    skin_points = get_points(landmarks, list(range(27)))
+    mask = binary_mask_from_polygon(image_shape, skin_points)
+    return refine_mask(mask, open_kernel=5, close_kernel=7, min_area=100)
+
+
 def segment_hair_mask(image: np.ndarray, landmarks: list[dict[str, float]], face_mask: np.ndarray) -> np.ndarray:
     height, width = image.shape[:2]
     face_points = get_points(landmarks, list(range(17)))
@@ -296,18 +322,22 @@ def segment_hair_mask(image: np.ndarray, landmarks: list[dict[str, float]], face
     brow_points = get_points(landmarks, list(range(17, 27)))
     brow_top = int(np.min(brow_points[:, 1]))
 
-    pad_x = max(20, int(0.30 * w))
-    pad_top = max(30, int(0.60 * h))
+    pad_x = max(28, int(0.35 * w))
+    pad_top = max(45, int(0.80 * h))
     left = max(0, x - pad_x)
     right = min(width, x + w + pad_x)
     top = max(0, y - pad_top)
-    lower_foreground_limit = max(0, brow_top + int(0.08 * h))
+    lower_foreground_limit = max(0, brow_top - int(0.03 * h))
+    forehead_band = max(20, int(0.18 * h))
 
     grabcut_mask = np.full((height, width), cv2.GC_BGD, dtype=np.uint8)
-    grabcut_mask[top:lower_foreground_limit, left:right] = cv2.GC_PR_FGD
+    grabcut_mask[top:lower_foreground_limit, left:right] = cv2.GC_FGD
+    grabcut_mask[lower_foreground_limit : brow_top + forehead_band, left:right] = cv2.GC_PR_BGD
     grabcut_mask[: max(1, top // 2), :] = cv2.GC_PR_FGD
     grabcut_mask[: max(0, brow_top - 15), left:right] = cv2.GC_PR_FGD
     grabcut_mask[face_mask > 0] = cv2.GC_BGD
+    grabcut_mask[:, : max(1, left - 20)] = cv2.GC_BGD
+    grabcut_mask[:, min(width, right + 20) :] = cv2.GC_BGD
 
     bgd_model = np.zeros((1, 65), dtype=np.float64)
     fgd_model = np.zeros((1, 65), dtype=np.float64)
@@ -323,8 +353,9 @@ def segment_hair_mask(image: np.ndarray, landmarks: list[dict[str, float]], face
         0,
     ).astype(np.uint8)
     hair_mask[face_mask > 0] = 0
-    hair_mask[brow_top + 2 :, :] = 0
-    hair_mask = refine_mask(hair_mask, open_kernel=5, close_kernel=5, min_area=80)
+    hair_mask[max(0, brow_top + 2) :, :] = 0
+    hair_mask = cv2.morphologyEx(hair_mask, cv2.MORPH_CLOSE, HAIR_MASK_CLEANUP_KERNEL, iterations=2)
+    hair_mask = refine_mask(hair_mask, open_kernel=5, close_kernel=7, min_area=80)
 
     if cv2.countNonZero(hair_mask) > 0:
         num_labels, labels, stats, _ = cv2.connectedComponentsWithStats((hair_mask > 0).astype(np.uint8), 8)
@@ -332,8 +363,9 @@ def segment_hair_mask(image: np.ndarray, landmarks: list[dict[str, float]], face
             largest_label = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
             hair_mask = np.where(labels == largest_label, 255, 0).astype(np.uint8)
 
+    hair_mask = cv2.dilate(hair_mask, np.ones((3, 3), dtype=np.uint8), iterations=1)
     hair_mask = cv2.GaussianBlur(hair_mask, (5, 5), 0)
-    hair_mask = np.where(hair_mask > 20, 255, 0).astype(np.uint8)
+    hair_mask = np.where(hair_mask > 16, 255, 0).astype(np.uint8)
     if cv2.countNonZero(hair_mask) == 0:
         raise ValueError("GrabCut produced an empty hair mask.")
     return hair_mask
@@ -364,8 +396,8 @@ def adjust_skin_tone(image: np.ndarray, skin_mask: np.ndarray, skin_category: st
 
     current_ita = math.degrees(math.atan((mean_l - 50.0) / mean_b))
     ita_delta = target["target_ita"] - current_ita
-    l_shift = float(np.clip(ita_delta * 0.30, -target["l_shift_cap"], target["l_shift_cap"]))
-    b_shift = float(np.clip(-ita_delta * 0.08, -target["b_shift_cap"], target["b_shift_cap"]))
+    l_shift = float(np.clip(ita_delta * 0.42, -target["l_shift_cap"], target["l_shift_cap"]))
+    b_shift = float(np.clip(-ita_delta * 0.10, -target["b_shift_cap"], target["b_shift_cap"]))
 
     adjusted_lab = lab.copy()
     adjusted_lab[:, :, 0][active] = np.clip(adjusted_lab[:, :, 0][active] + l_shift, 0, 255)
@@ -406,6 +438,100 @@ def compute_colour_shift_metrics(original: np.ndarray, result: np.ndarray, mask:
     per_pixel = np.sqrt(np.sum(delta * delta, axis=2))
     values = per_pixel[active]
     return float(np.mean(values)), float(np.max(values))
+
+
+def save_binary_mask(path: Path, mask: np.ndarray) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not cv2.imwrite(str(path), mask):
+        raise ValueError(f"Failed to write mask to {path}")
+    return path
+
+
+def confidence_strength(trait_block: dict[str, Any]) -> float:
+    label = str(trait_block.get("confidence_label", "")).upper()
+    if label == "HIGH":
+        return 0.8
+    if label == "LOW":
+        return 0.4
+    if label == "MEDIUM":
+        return 0.6
+    probability = float(trait_block.get("max_probability", trait_block.get("confidence", 0.0)) or 0.0)
+    if probability >= 0.8:
+        return 0.8
+    if probability >= 0.55:
+        return 0.6
+    return 0.4
+
+
+def colourise_mask_lab(
+    image: np.ndarray,
+    mask: np.ndarray,
+    target_bgr: tuple[int, int, int],
+    blend_weight: float,
+    channel_weights: tuple[float, float, float] = (0.25, 1.0, 1.0),
+    highlight_mask: np.ndarray | None = None,
+) -> np.ndarray:
+    if cv2.countNonZero(mask) == 0:
+        raise ValueError("Colour transfer mask is empty.")
+
+    source_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)
+    target_lab = cv2.cvtColor(np.uint8([[target_bgr]]), cv2.COLOR_BGR2LAB)[0, 0].astype(np.float32)
+    active = mask > 0
+    if highlight_mask is not None:
+        active = active & (highlight_mask == 0)
+
+    adjusted_lab = source_lab.copy()
+    for channel_index, channel_weight in enumerate(channel_weights):
+        if channel_weight <= 0:
+            continue
+        current = adjusted_lab[:, :, channel_index][active]
+        if current.size == 0:
+            continue
+        adjusted_lab[:, :, channel_index][active] = (
+            current * (1.0 - blend_weight * channel_weight) + target_lab[channel_index] * blend_weight * channel_weight
+        )
+
+    adjusted = cv2.cvtColor(adjusted_lab.astype(np.uint8), cv2.COLOR_LAB2BGR)
+    soft_mask = feather_mask(mask, kernel_size=(11, 11)) * blend_weight
+    blended = image.astype(np.float32) * (1.0 - soft_mask[:, :, None]) + adjusted.astype(np.float32) * soft_mask[:, :, None]
+    return clamp_uint8(blended)
+
+
+def estimate_eye_highlight_mask(image: np.ndarray, eye_mask: np.ndarray) -> np.ndarray:
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    region = gray[eye_mask > 0]
+    threshold = float(np.percentile(region, 92)) if region.size else 255.0
+    highlight = np.zeros_like(eye_mask)
+    highlight[(eye_mask > 0) & (gray >= threshold)] = 255
+    return highlight
+
+
+def build_debug_panel(before: np.ndarray, after: np.ndarray, mask: np.ndarray, title: str, subtitle: str) -> Image.Image:
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    before_rgb = cv2.cvtColor(before, cv2.COLOR_BGR2RGB)
+    after_rgb = cv2.cvtColor(after, cv2.COLOR_BGR2RGB)
+    mask_rgb = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+    overlay = before_rgb.copy()
+    overlay[mask > 0] = (0.25 * overlay[mask > 0] + 0.75 * np.array([255, 99, 71])).astype(np.uint8)
+    for ax in axes:
+        ax.axis("off")
+    axes[0].imshow(before_rgb)
+    axes[0].set_title("Before", fontsize=11)
+    axes[1].imshow(after_rgb)
+    axes[1].set_title("After", fontsize=11)
+    axes[2].imshow(overlay)
+    axes[2].set_title("Mask overlay", fontsize=11)
+    fig.suptitle(title, fontweight="bold")
+    fig.text(0.5, 0.02, subtitle, ha="center", fontsize=9)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.94))
+    return fig
+
+
+def save_debug_panel(path: Path, before: np.ndarray, after: np.ndarray, mask: np.ndarray, title: str, subtitle: str) -> Path:
+    fig = build_debug_panel(before, after, mask, title, subtitle)
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+    return path
 
 
 def parse_args() -> argparse.Namespace:
@@ -450,6 +576,9 @@ def main() -> None:
     eye_colour = get_trait_prediction(report, "eye")
     hair_colour = get_trait_prediction(report, "hair")
     skin_tone = get_trait_prediction(report, "skin")
+    eye_report = report.get("trait_reports", {}).get("eye", {}) if isinstance(report.get("trait_reports", {}), dict) else {}
+    hair_report = report.get("trait_reports", {}).get("hair", {}) if isinstance(report.get("trait_reports", {}), dict) else {}
+    skin_report = report.get("trait_reports", {}).get("skin", {}) if isinstance(report.get("trait_reports", {}), dict) else {}
 
     face_mask = build_face_mask(landmarks, image.shape[:2])
     eyebrow_mask = build_eyebrow_mask(landmarks, image.shape[:2])
@@ -457,35 +586,82 @@ def main() -> None:
     right_eye_mask = build_eye_mask(image, landmarks, EYE_IDS["right"])
     eye_mask = refine_mask(cv2.bitwise_or(left_eye_mask, right_eye_mask), open_kernel=3, close_kernel=3, min_area=10)
     eye_mask = cv2.bitwise_and(eye_mask, cv2.bitwise_not(eyebrow_mask))
+    eye_highlights = estimate_eye_highlight_mask(image, eye_mask)
     mouth_mask = build_mouth_mask(landmarks, image.shape[:2])
 
     eye_config = COLOUR_CONFIG["eye"][eye_colour]
-    hair_config = COLOUR_CONFIG["hair"][hair_colour]
+    rendered_hair_colour = HAIR_PRESENTATION_OVERRIDE.get(hair_colour, hair_colour)
+    hair_config = COLOUR_CONFIG["hair"][rendered_hair_colour]
 
-    image_after_eyes = blend_with_colour(image, eye_mask, eye_config["bgr"], eye_config["strength"])
+    image_after_eyes = colourise_mask_lab(
+        image,
+        eye_mask,
+        eye_config["bgr"],
+        confidence_strength(eye_report),
+        channel_weights=(0.18, 1.0, 1.0),
+        highlight_mask=eye_highlights,
+    )
+    save_binary_mask(EYE_MASK_OUTPUT, eye_mask)
+    save_binary_mask(DEBUG_EYE_MASK, eye_mask)
+    save_debug_panel(
+        EYE_DEBUG_OUTPUT,
+        image,
+        image_after_eyes,
+        eye_mask,
+        "Eye recolouring",
+        f"Prediction: {eye_colour} | Confidence: {eye_report.get('confidence_label', 'UNKNOWN') or 'UNKNOWN'}",
+    )
 
     hair_mask = segment_hair_mask(image_after_eyes, landmarks, face_mask)
-    image_after_hair = blend_with_colour(image_after_eyes, hair_mask, hair_config["bgr"], hair_config["strength"])
+    image_after_hair = colourise_mask_lab(
+        image_after_eyes,
+        hair_mask,
+        hair_config["bgr"],
+        0.70,
+        channel_weights=(0.30, 1.0, 1.0),
+    )
+    save_binary_mask(HAIR_MASK_OUTPUT, hair_mask)
+    save_binary_mask(DEBUG_HAIR_MASK, hair_mask)
+    save_debug_panel(
+        HAIR_DEBUG_OUTPUT,
+        image_after_eyes,
+        image_after_hair,
+        hair_mask,
+        "Hair segmentation and recolouring",
+        f"Prediction: {hair_colour} | Blend: 70% predicted, 30% original",
+    )
 
-    skin_mask = cv2.bitwise_and(face_mask, cv2.bitwise_not(eye_mask))
+    skin_mask = build_skin_base_mask(landmarks, image.shape[:2])
+    expanded_eye_mask = cv2.dilate(eye_mask, np.ones((11, 11), dtype=np.uint8), iterations=1)
+    expanded_mouth_mask = cv2.dilate(mouth_mask, np.ones((13, 13), dtype=np.uint8), iterations=1)
+    expanded_hair_mask = cv2.dilate(hair_mask, np.ones((9, 9), dtype=np.uint8), iterations=1)
+    skin_mask = cv2.bitwise_and(skin_mask, cv2.bitwise_not(expanded_eye_mask))
     skin_mask = cv2.bitwise_and(skin_mask, cv2.bitwise_not(eyebrow_mask))
-    skin_mask = cv2.bitwise_and(skin_mask, cv2.bitwise_not(mouth_mask))
-    skin_mask = cv2.bitwise_and(skin_mask, cv2.bitwise_not(hair_mask))
+    skin_mask = cv2.bitwise_and(skin_mask, cv2.bitwise_not(expanded_mouth_mask))
+    skin_mask = cv2.bitwise_and(skin_mask, cv2.bitwise_not(expanded_hair_mask))
     skin_mask = cv2.morphologyEx(skin_mask, cv2.MORPH_OPEN, SKIN_MASK_CLEANUP_KERNEL)
-    skin_mask = cv2.morphologyEx(skin_mask, cv2.MORPH_CLOSE, SKIN_MASK_CLEANUP_KERNEL)
+    skin_mask = cv2.morphologyEx(skin_mask, cv2.MORPH_CLOSE, np.ones((5, 5), dtype=np.uint8))
     skin_mask = refine_mask(skin_mask, open_kernel=3, close_kernel=3, min_area=50)
     if cv2.countNonZero(skin_mask) == 0:
         raise ValueError("Derived skin mask is empty.")
 
     image_after_skin = adjust_skin_tone(image_after_hair, skin_mask, skin_tone)
+    save_binary_mask(SKIN_MASK_OUTPUT, skin_mask)
+    save_binary_mask(DEBUG_SKIN_MASK, skin_mask)
+    save_debug_panel(
+        SKIN_DEBUG_OUTPUT,
+        image_after_hair,
+        image_after_skin,
+        skin_mask,
+        "Skin tone application",
+        f"Prediction: {skin_tone} | Blend: 60% adjusted, 40% original",
+    )
     final_image = add_watermark(image_after_skin)
 
     if not cv2.imwrite(str(output_path), final_image):
         raise ValueError(f"Failed to write pigmentation output to {output_path}")
-
-    save_mask_preview(DEBUG_EYE_MASK, eye_mask)
-    save_mask_preview(DEBUG_HAIR_MASK, hair_mask)
-    save_mask_preview(DEBUG_SKIN_MASK, skin_mask)
+    if not cv2.imwrite(str(FINAL_COLOURISED_FACE), final_image):
+        raise ValueError(f"Failed to write final colourised face to {FINAL_COLOURISED_FACE}")
 
     union_mask = cv2.bitwise_or(eye_mask, hair_mask)
     union_mask = cv2.bitwise_or(union_mask, skin_mask)
@@ -494,6 +670,7 @@ def main() -> None:
     qc_payload = {
         "eye_colour": eye_colour,
         "hair_colour": hair_colour,
+        "presentation_hair_colour": rendered_hair_colour,
         "skin_tone": normalise_skin_category(skin_tone),
         "watermark_added": True,
         "eye_mask_area": int(cv2.countNonZero(eye_mask)),
@@ -501,11 +678,12 @@ def main() -> None:
         "skin_mask_area": int(cv2.countNonZero(skin_mask)),
         "mean_colour_shift": round(mean_colour_shift, 4),
         "maximum_colour_shift": round(maximum_colour_shift, 4),
+        "final_colourised_face": str(FINAL_COLOURISED_FACE),
     }
     write_json(qc_path, qc_payload)
 
     LOG.info("Eye colour applied: %s", eye_colour)
-    LOG.info("Hair colour applied: %s", hair_colour)
+    LOG.info("Hair colour applied: %s (rendered as %s)", hair_colour, rendered_hair_colour)
     LOG.info("Skin tone applied: %s", normalise_skin_category(skin_tone))
     LOG.info("Output path: %s", output_path)
     LOG.info(

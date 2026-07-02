@@ -1,0 +1,10 @@
+{
+  "predicted_sex": "male",
+  "confidence": 0.99,
+  "x_variant_count": null,
+  "x_heterozygous_count": null,
+  "x_heterozygosity_rate": null,
+  "y_variant_count": null,
+  "inference_source": "1000g_panel",
+  "sample_id": "HG01586"
+}

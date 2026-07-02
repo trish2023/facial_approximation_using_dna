@@ -109,6 +109,7 @@ def load_predictions(path: Path) -> dict:
         return json.load(fh)
 
 
+
 def load_ancestry(path: Path) -> dict | None:
     """Load ancestry_stage2.json; returns None if file is absent."""
     if not path.exists():
@@ -118,31 +119,25 @@ def load_ancestry(path: Path) -> dict | None:
         return json.load(fh)
 
 
-def load_dosage_coverage(path: Path) -> tuple[int, int, list[str]]:
+def load_dosage_coverage(path: Path) -> tuple[int, int]:
     """
-    Return (n_present, n_total, imputed_snps) by reading hirisplex_dosages.csv.
+    Return (n_present, n_total) by reading hirisplex_dosages.csv.
     n_total is always TOTAL_SNPS; n_present counts rows where dosage ≠ 'NA'.
-    imputed_snps is a list of rsIDs where dosage is 'NA'.
     """
     if not path.exists():
         log.warning("Dosages file not found at %s — using placeholder coverage.", path)
-        return 0, TOTAL_SNPS, []
+        return 0, TOTAL_SNPS
 
     n_present = 0
     n_total   = 0
-    imputed_snps: list[str] = []
     with open(path, newline="") as fh:
         reader = csv.DictReader(fh)
         for row in reader:
             cleaned = {k.strip().lstrip("\ufeff"): v.strip() for k, v in row.items()}
-            rsid = cleaned.get("rsID", "").strip()
             raw = cleaned.get("dosage", "NA").strip().upper()
             n_total += 1
             if raw not in ("NA", "NAN", "NONE", ""):
                 n_present += 1
-            else:
-                if rsid:
-                    imputed_snps.append(rsid)
 
     # Ensure n_total matches expected panel size (warn if not)
     if n_total != TOTAL_SNPS:
@@ -150,7 +145,7 @@ def load_dosage_coverage(path: Path) -> tuple[int, int, list[str]]:
             "Dosage file has %d rows; expected %d (full HIrisPlex-S panel).",
             n_total, TOTAL_SNPS,
         )
-    return n_present, n_total, imputed_snps
+    return n_present, n_total
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +202,6 @@ def _build_trait_report(
     predicted: str                  = pred.get("predicted", "unknown")
     n_imputed: int                  = pred.get("n_imputed", 0)
     imputed_rsids: list             = pred.get("imputed_rsids", [])
-    imputation_method: str          = pred.get("imputation_method", "zero")
     model_warnings: list            = pred.get("warnings", [])
 
     # --- core metrics ---
@@ -258,7 +252,6 @@ def _build_trait_report(
         "n_imputed":               n_imputed,
         "n_total":                 n_total,
         "imputed_rsids":           imputed_rsids,
-        "imputation_method":       imputation_method,
         "population_bias_warning": population_bias_warning,
         "bias_reasons":            bias_reasons,
         "confidence_label":        confidence_label,
@@ -285,7 +278,7 @@ def build_report(
     # ---- load inputs --------------------------------------------------------
     preds     = load_predictions(predictions_path)
     ancestry  = load_ancestry(ancestry_path)
-    n_present, n_total, imputed_snps = load_dosage_coverage(dosages_path)
+    n_present, n_total = load_dosage_coverage(dosages_path)
 
     snp_coverage_pct = (n_present / n_total * 100) if n_total > 0 else 0.0
     ani_proportion: float | None = (
@@ -356,8 +349,6 @@ def build_report(
             "n_present":          n_present,
             "n_total":            n_total,
             "coverage_pct":       round(snp_coverage_pct, 2),
-            "imputation_method":  "zero",
-            "imputed_snps":       imputed_snps,
         },
         "ani_proportion":    ani_proportion,
         "ani_threshold_used": ani_threshold,

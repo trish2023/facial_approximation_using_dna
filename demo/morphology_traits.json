@@ -1,0 +1,50 @@
+{
+  "xiong2025_Chin_34_35": {
+    "prs_raw": -0.14606000000000002,
+    "z_score": -1.3577954533421708,
+    "direction": "Decreased",
+    "magnitude": "Moderate",
+    "snp_count": 4,
+    "imputed_count": 0,
+    "snp_coverage_pct": 100.0,
+    "confidence_score": 2.7155909066843416,
+    "valid_reference_distribution": true,
+    "reference_sd_prs": 0.1621374472941894
+  },
+  "xiong2025_Chin_34_36": {
+    "prs_raw": -0.14843,
+    "z_score": -1.1850282530794252,
+    "direction": "Decreased",
+    "magnitude": "Moderate",
+    "snp_count": 5,
+    "imputed_count": 0,
+    "snp_coverage_pct": 100.0,
+    "confidence_score": 2.6498037291434193,
+    "valid_reference_distribution": true,
+    "reference_sd_prs": 0.16895069731289572
+  },
+  "xiong2025_Chin_35_36": {
+    "prs_raw": -0.2144,
+    "z_score": -1.7888440948669517,
+    "direction": "Decreased",
+    "magnitude": "Moderate",
+    "snp_count": 5,
+    "imputed_count": 0,
+    "snp_coverage_pct": 100.0,
+    "confidence_score": 3.999976997271587,
+    "valid_reference_distribution": true,
+    "reference_sd_prs": 0.15734283406734573
+  },
+  "xiong2025_Lowercheek_37_38": {
+    "prs_raw": 0.0,
+    "z_score": 0.5600029499679515,
+    "direction": "Increased",
+    "magnitude": "Mild",
+    "snp_count": 1,
+    "imputed_count": 0,
+    "snp_coverage_pct": 100.0,
+    "confidence_score": 0.5600029499679515,
+    "valid_reference_distribution": true,
+    "reference_sd_prs": 0.04691941395389537
+  }
+}

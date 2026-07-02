@@ -1,0 +1,34 @@
+[
+  {
+    "trait": "xiong2025_Chin_35_36",
+    "confidence_score": 3.999976997271587,
+    "z_score": -1.7888440948669517,
+    "direction": "Decreased",
+    "magnitude": "Moderate",
+    "snp_count": 5
+  },
+  {
+    "trait": "xiong2025_Chin_34_35",
+    "confidence_score": 2.7155909066843416,
+    "z_score": -1.3577954533421708,
+    "direction": "Decreased",
+    "magnitude": "Moderate",
+    "snp_count": 4
+  },
+  {
+    "trait": "xiong2025_Chin_34_36",
+    "confidence_score": 2.6498037291434193,
+    "z_score": -1.1850282530794252,
+    "direction": "Decreased",
+    "magnitude": "Moderate",
+    "snp_count": 5
+  },
+  {
+    "trait": "xiong2025_Lowercheek_37_38",
+    "confidence_score": 0.5600029499679515,
+    "z_score": 0.5600029499679515,
+    "direction": "Increased",
+    "magnitude": "Mild",
+    "snp_count": 1
+  }
+]

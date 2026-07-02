@@ -1,0 +1,126 @@
+{
+  "pipeline": "HIrisPlex-S Uncertainty Report",
+  "generated_at": "2026-06-25T04:38:20.103116+00:00",
+  "subject_id": "HG01583",
+  "predictions_file": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/hirisplex_predictions.json",
+  "ancestry_file": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/ancestry_stage2.json",
+  "dosages_file": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/hirisplex_dosages.csv",
+  "snp_coverage": {
+    "n_present": 32,
+    "n_total": 41,
+    "coverage_pct": 78.05
+  },
+  "ani_proportion": 0.76,
+  "ani_threshold_used": 0.5,
+  "calibrated_thresholds": {
+    "eye": 0.7,
+    "hair": 0.7,
+    "skin": 0.6
+  },
+  "trait_reports": {
+    "eye": {
+      "predicted": "brown",
+      "probabilities": {
+        "brown": 0.993695,
+        "intermediate": 0.006177,
+        "blue": 0.000128
+      },
+      "max_probability": 0.993695,
+      "uncertainty_score": 0.006305,
+      "calibrated_threshold": 0.7,
+      "threshold_met": true,
+      "snp_coverage_pct": 78.05,
+      "n_present": 32,
+      "n_imputed": 9,
+      "n_total": 41,
+      "imputed_rsids": [
+        "rs312262906",
+        "rs11547464",
+        "rs1805006",
+        "rs1805009",
+        "rs201326893",
+        "rs1110400",
+        "rs1800414",
+        "rs6119471",
+        "rs3212355"
+      ],
+      "population_bias_warning": false,
+      "bias_reasons": [],
+      "confidence_label": "MEDIUM",
+      "model_warnings": [
+        "9 SNP(s) were NA-imputed with mean dosage 0.6562: rs312262906, rs11547464, rs1805006, rs1805009, rs201326893, rs1110400, rs1800414, rs6119471, rs3212355"
+      ]
+    },
+    "hair": {
+      "predicted": "blond",
+      "probabilities": {
+        "blond": 0.85852,
+        "brown": 0.14148,
+        "black": 0.0,
+        "red": 0.0
+      },
+      "max_probability": 0.85852,
+      "uncertainty_score": 0.14148,
+      "calibrated_threshold": 0.7,
+      "threshold_met": true,
+      "snp_coverage_pct": 78.05,
+      "n_present": 32,
+      "n_imputed": 9,
+      "n_total": 41,
+      "imputed_rsids": [
+        "rs312262906",
+        "rs11547464",
+        "rs1805006",
+        "rs1805009",
+        "rs201326893",
+        "rs1110400",
+        "rs1800414",
+        "rs6119471",
+        "rs3212355"
+      ],
+      "population_bias_warning": false,
+      "bias_reasons": [],
+      "confidence_label": "MEDIUM",
+      "model_warnings": [
+        "9 SNP(s) were NA-imputed with mean dosage 0.6562: rs312262906, rs11547464, rs1805006, rs1805009, rs201326893, rs1110400, rs1800414, rs6119471, rs3212355"
+      ]
+    },
+    "skin": {
+      "predicted": "dark_to_black",
+      "probabilities": {
+        "dark_to_black": 0.985027,
+        "dark": 0.014973,
+        "pale": 0.0,
+        "intermediate": 0.0,
+        "very_pale": 0.0
+      },
+      "max_probability": 0.985027,
+      "uncertainty_score": 0.014973,
+      "calibrated_threshold": 0.6,
+      "threshold_met": true,
+      "snp_coverage_pct": 78.05,
+      "n_present": 32,
+      "n_imputed": 9,
+      "n_total": 41,
+      "imputed_rsids": [
+        "rs312262906",
+        "rs11547464",
+        "rs1805006",
+        "rs1805009",
+        "rs201326893",
+        "rs1110400",
+        "rs1800414",
+        "rs6119471",
+        "rs3212355"
+      ],
+      "population_bias_warning": true,
+      "bias_reasons": [
+        "HIrisPlex-S skin model trained predominantly on European samples; performance is reduced for South Asian subjects."
+      ],
+      "confidence_label": "MEDIUM",
+      "model_warnings": [
+        "9 SNP(s) were NA-imputed with mean dosage 0.6562: rs312262906, rs11547464, rs1805006, rs1805009, rs201326893, rs1110400, rs1800414, rs6119471, rs3212355"
+      ]
+    }
+  }
+}

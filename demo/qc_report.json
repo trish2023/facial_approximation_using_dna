@@ -1,0 +1,224 @@
+{
+  "generated_at": "2026-06-25T04:39:17.316191+00:00",
+  "overview": {
+    "traffic_light": "GREEN",
+    "overall_reliability": 0.7797,
+    "overall_reliability_score": 0.7797,
+    "reliability_components": {
+      "pigmentation": 0.8301,
+      "morphology": 0.8283,
+      "ancestry": 0.664
+    }
+  },
+  "files": {
+    "loaded": [
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/ancestry_stage2.json",
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/sex_prediction.json",
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/prs_summary.csv",
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/morphology_traits.json",
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/displacement_summary.json",
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/warp_qc.json",
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/pigmentation_report.json",
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/pigmentation_qc.json",
+      "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/template_selection.json"
+    ],
+    "missing": []
+  },
+  "sections": {
+    "input_vcf_stats": {
+      "status": "not_available",
+      "subject_id": "HG01583",
+      "genome_build": null,
+      "total_variants_processed": null,
+      "snps_retained_after_qc": null,
+      "snps_used_for_ancestry": null,
+      "snps_used_for_pigmentation": null,
+      "snps_used_for_morphology": null
+    },
+    "ancestry": {
+      "status": "available",
+      "source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/ancestry_stage2.json",
+      "predicted_label": "IndoAryan-proxy",
+      "ani_proportion": 0.76,
+      "asi_proportion": 0.24,
+      "ancestry_confidence": 0.76,
+      "ancestry_certainty": 0.52,
+      "model_type": "RandomForestClassifier",
+      "reference_populations_used": [
+        "IndoAryan-proxy",
+        "Dravidian-proxy"
+      ],
+      "subject_id": "HG01583"
+    },
+    "sex_prediction": {
+      "status": "available",
+      "source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/sex_prediction.json",
+      "predicted_sex": "male",
+      "confidence": 0.99,
+      "x_chromosome_variants": null,
+      "y_chromosome_variants": null
+    },
+    "template_selection": {
+      "status": "available",
+      "source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/template_selection.json",
+      "selected_template": "indoaryan_male",
+      "template_path": "data/reference/face_templates/indoaryan_male.jpg",
+      "ancestry_label": "IndoAryan-proxy",
+      "sex": "male",
+      "template_source": "Gemini AI"
+    },
+    "pigmentation": {
+      "status": "available",
+      "source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/pigmentation_report.json",
+      "qc_source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/pigmentation_qc.json",
+      "eye_colour_prediction": "brown",
+      "hair_colour_prediction": "blond",
+      "skin_tone_prediction": "dark_to_black",
+      "snp_coverage_pct": 78.05,
+      "confidence_score": 0.9457,
+      "number_of_imputed_snps": 9,
+      "predictions_are_probabilistic": true,
+      "warning": "Predictions represent probabilistic genetic inference and may not fully capture environmental or population-specific variation.",
+      "qc_metrics": {
+        "eye_colour": "brown",
+        "hair_colour": "blond",
+        "presentation_hair_colour": "brown",
+        "skin_tone": "dark_black",
+        "watermark_added": true,
+        "eye_mask_area": 94,
+        "hair_mask_area": 153717,
+        "skin_mask_area": 67045,
+        "mean_colour_shift": 31.8176,
+        "maximum_colour_shift": 57.9483,
+        "final_colourised_face": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/final_colourised_face.png"
+      },
+      "imputation_rate": 0.2195
+    },
+    "morphology": {
+      "status": "available",
+      "source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/morphology_traits.json",
+      "displacement_source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/displacement_summary.json",
+      "traits": [
+        {
+          "trait_name": "xiong2025_Chin_35_36",
+          "z_score": -1.7888440948669517,
+          "direction": "Decreased",
+          "magnitude": "Moderate",
+          "confidence_score": 3.999976997271587,
+          "snp_count": 5,
+          "snp_coverage_pct": 100.0
+        },
+        {
+          "trait_name": "xiong2025_Chin_34_35",
+          "z_score": -1.3577954533421708,
+          "direction": "Decreased",
+          "magnitude": "Moderate",
+          "confidence_score": 2.7155909066843416,
+          "snp_count": 4,
+          "snp_coverage_pct": 100.0
+        },
+        {
+          "trait_name": "xiong2025_Chin_34_36",
+          "z_score": -1.1850282530794252,
+          "direction": "Decreased",
+          "magnitude": "Moderate",
+          "confidence_score": 2.6498037291434193,
+          "snp_count": 5,
+          "snp_coverage_pct": 100.0
+        },
+        {
+          "trait_name": "xiong2025_Lowercheek_37_38",
+          "z_score": 0.5600029499679515,
+          "direction": "Increased",
+          "magnitude": "Mild",
+          "confidence_score": 0.5600029499679515,
+          "snp_count": 1,
+          "snp_coverage_pct": 100.0
+        }
+      ],
+      "landmarks_modified": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "maximum_displacement": 15.3285,
+      "mean_displacement": 8.7871,
+      "notes": [
+        "Only jawline and chin landmarks are modified because the current validated GWAS-derived morphology traits in this pipeline cover chin and lower-cheek variation only.",
+        "This displacement mapping reflects the currently available morphology traits and is designed to remain conservative outside the lower facial contour.",
+        "Future facial GWAS releases can extend this mapping to eyes, nose, mouth, forehead, and eyebrows once validated regional traits become available."
+      ]
+    },
+    "reconstruction": {
+      "status": "available",
+      "source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/warp_qc.json",
+      "landmark_count": 76,
+      "triangle_count": 140,
+      "max_displacement": 15.3285,
+      "mean_displacement": 1.5031,
+      "p95_displacement": 11.8635,
+      "unrealistic_warp": false,
+      "boundary_smoothing_applied": true
+    },
+    "prs_summary": {
+      "status": "available",
+      "source": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/prs_summary.csv",
+      "rows": [
+        {
+          "trait": "xiong2025_Chin_34_35",
+          "prs": "-0.14606000000000002",
+          "z_score": "-1.3577954533421708",
+          "snp_count": "4",
+          "imputed_count": "0",
+          "shared_snps": "0",
+          "eur_only": "4",
+          "du_only": "0",
+          "alpha_used": "0.76"
+        },
+        {
+          "trait": "xiong2025_Chin_34_36",
+          "prs": "-0.14843",
+          "z_score": "-1.1850282530794252",
+          "snp_count": "5",
+          "imputed_count": "0",
+          "shared_snps": "0",
+          "eur_only": "5",
+          "du_only": "0",
+          "alpha_used": "0.76"
+        },
+        {
+          "trait": "xiong2025_Chin_35_36",
+          "prs": "-0.2144",
+          "z_score": "-1.7888440948669517",
+          "snp_count": "5",
+          "imputed_count": "0",
+          "shared_snps": "0",
+          "eur_only": "5",
+          "du_only": "0",
+          "alpha_used": "0.76"
+        },
+        {
+          "trait": "xiong2025_Lowercheek_37_38",
+          "prs": "0.0",
+          "z_score": "0.5600029499679515",
+          "snp_count": "1",
+          "imputed_count": "0",
+          "shared_snps": "0",
+          "eur_only": "1",
+          "du_only": "0",
+          "alpha_used": "0.76"
+        }
+      ]
+    }
+  }
+}

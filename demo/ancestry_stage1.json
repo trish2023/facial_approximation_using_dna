@@ -1,0 +1,30 @@
+{
+  "pipeline": "KNN",
+  "cross_validation": {
+    "KNN": {
+      "accuracy_mean": 1.0,
+      "accuracy_std": 0.0,
+      "f1_macro_mean": 1.0,
+      "f1_weighted_mean": 1.0
+    },
+    "RandomForest": {
+      "accuracy_mean": 1.0,
+      "accuracy_std": 0.0,
+      "f1_macro_mean": 1.0,
+      "f1_weighted_mean": 1.0
+    },
+    "SVM": {
+      "accuracy_mean": 1.0,
+      "accuracy_std": 0.0,
+      "f1_macro_mean": 1.0,
+      "f1_weighted_mean": 1.0
+    }
+  },
+  "predicted_superpopulation": "SAS",
+  "probabilities": {
+    "EUR": 0.0,
+    "SAS": 1.0
+  },
+  "is_south_asian": true,
+  "subject_id": "HG01586"
+}

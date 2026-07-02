@@ -1,0 +1,8 @@
+{
+  "triangle_count": 140,
+  "max_displacement_px": 15.3285,
+  "mean_displacement_px": 1.5031,
+  "p95_displacement_px": 11.8635,
+  "unrealistic_warp": false,
+  "boundary_smoothing_applied": true
+}

@@ -1,0 +1,21 @@
+{
+  "eye_colour_visibly_changed": true,
+  "final_image_contains_all_annotation_blocks": true,
+  "generated_at": "2026-06-25T04:39:17.231014+00:00",
+  "hair_mask_coverage_proxy": 1.5958,
+  "hair_mask_coverage_proxy_gt_70_percent": true,
+  "no_panel_overflow": true,
+  "output_files": {
+    "confidence_panel": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/confidence_panel.png",
+    "final_colourised_face": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/final_colourised_face.png",
+    "final_composite_pdf": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/final_composite.pdf",
+    "final_composite_png": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/final_composite.png",
+    "probability_panel": "/Users/dhritiarya/Documents/RVCE/SEM6/IDP/DNA-git/facial_approximation_using_dna/outputs/probability_panel.png"
+  },
+  "overall_reliability": 0.7796,
+  "pdf_export_successful": true,
+  "skin_eye_mouth_overlap_ratio": 0.051339,
+  "skin_mask_excludes_eyes_and_mouth": true,
+  "traffic_light": "GREEN",
+  "watermark_exists": true
+}

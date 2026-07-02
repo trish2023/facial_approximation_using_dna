@@ -13,6 +13,7 @@ import argparse
 import gzip
 import json
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -27,6 +28,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs"
 DEFAULT_CONFIG = PROJECT_ROOT / "config.yaml"
 DEFAULT_VCF = PROJECT_ROOT / "data" / "processed" / "subject_hirisplex.vcf"
+DEFAULT_SUBJECT_VCF = PROJECT_ROOT / "data" / "processed" / "subject_hirisplex.vcf"
+RUN_STATE_PATH = DEFAULT_OUTPUT_DIR / "dashboard_run_state.json"
 
 REQUIRED_RESOURCES = [
     ("reference SNP file", PROJECT_ROOT / "data" / "reference" / "hirisplex_41snps.csv"),
@@ -42,6 +45,7 @@ REQUIRED_RESOURCES = [
 ]
 
 REQUIRED_SCRIPT_FILES = [
+    PROJECT_ROOT / "scripts" / "make_subject_vcf.py",
     PROJECT_ROOT / "scripts" / "superpop_classifier.py",
     PROJECT_ROOT / "scripts" / "stage2_random_forest.py",
     PROJECT_ROOT / "scripts" / "predict_sex.py",
@@ -55,6 +59,7 @@ REQUIRED_SCRIPT_FILES = [
     PROJECT_ROOT / "scripts" / "landmark_displacement_mapping.py",
     PROJECT_ROOT / "scripts" / "delaunay_warp.py",
     PROJECT_ROOT / "scripts" / "apply_pigmentation.py",
+    PROJECT_ROOT / "scripts" / "final_forensic_render.py",
     PROJECT_ROOT / "scripts" / "generate_qc_report.py",
 ]
 
@@ -146,21 +151,48 @@ class PipelineController:
         vcf_path: Path,
         output_dir: Path = DEFAULT_OUTPUT_DIR,
         config_path: Path = DEFAULT_CONFIG,
+        sample_id: str | None = None,
         skip_stage2: bool = False,
         dry_run: bool = False,
     ) -> None:
-        self.vcf_path = vcf_path.resolve()
+        self.source_vcf_path = vcf_path.resolve()
         self.output_dir = output_dir.resolve()
         self.config_path = config_path.resolve()
+        self.sample_id = sample_id.strip() if sample_id else None
         self.skip_stage2 = skip_stage2
         self.dry_run = dry_run
+        self.subject_vcf_path = DEFAULT_SUBJECT_VCF.resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.log_path = self.output_dir / "pipeline.log"
         self.failed_path = self.output_dir / "PIPELINE_FAILED.json"
         self.stage_results: list[dict[str, Any]] = []
-        self.subject_id = read_vcf_sample_id(self.vcf_path)
+        self.subject_id = self.sample_id or read_vcf_sample_id(self.source_vcf_path)
         self._logger = self._configure_logging()
         self._planned_stages = self._build_stages()
+        self._completed_stages: list[str] = []
+
+    def _write_run_state(self, **updates: Any) -> None:
+        state = {
+            "pid": os.getpid(),
+            "source_vcf": str(self.source_vcf_path),
+            "sample_id": self.sample_id,
+            "subject_id": self.subject_id,
+            "output_dir": str(self.output_dir),
+            "current_stage": None,
+            "completed_stages": list(self._completed_stages),
+            "error": None,
+            "error_stage": None,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if RUN_STATE_PATH.exists():
+            try:
+                existing = load_json_object(RUN_STATE_PATH)
+                if isinstance(existing, dict):
+                    state.update(existing)
+            except Exception:
+                pass
+        state.update(updates)
+        write_json(RUN_STATE_PATH, state)
 
     def _configure_logging(self) -> logging.Logger:
         logger = logging.getLogger(f"pipeline.{id(self)}")
@@ -180,13 +212,51 @@ class PipelineController:
         return logger
 
     def _build_stages(self) -> list[PipelineStage]:
-        stages: list[PipelineStage] = [
+        stages: list[PipelineStage] = []
+
+        if self.sample_id:
+            stages.append(
+                PipelineStage(
+                    name="extract_subject_vcf",
+                    command=[
+                        sys.executable,
+                        str(script_path("scripts/make_subject_vcf.py")),
+                        "--sample",
+                        self.sample_id,
+                        "--merged-vcf",
+                        str(self.source_vcf_path),
+                        "--output",
+                        str(self.subject_vcf_path),
+                    ],
+                    outputs=[self.subject_vcf_path],
+                )
+            )
+        elif self.source_vcf_path != self.subject_vcf_path:
+            stages.append(
+                PipelineStage(
+                    name="prepare_subject_vcf",
+                    command=[
+                        sys.executable,
+                        "-c",
+                        (
+                            "from pathlib import Path; import shutil; "
+                            f"src = Path({str(self.source_vcf_path)!r}); "
+                            f"dst = Path({str(self.subject_vcf_path)!r}); "
+                            "dst.parent.mkdir(parents=True, exist_ok=True); "
+                            "shutil.copy2(src, dst)"
+                        ),
+                    ],
+                    outputs=[self.subject_vcf_path],
+                )
+            )
+
+        stages.append(
             PipelineStage(
                 name="ancestry_superpopulation",
                 command=[sys.executable, str(script_path("scripts/superpop_classifier.py")), "--subject", self.subject_id],
                 outputs=[PROJECT_ROOT / "outputs" / "ancestry_stage1.json"],
-            ),
-        ]
+            )
+        )
 
         if not self.skip_stage2:
             stages.append(
@@ -201,12 +271,12 @@ class PipelineController:
             [
                 PipelineStage(
                     name="sex_prediction",
-                    command=[sys.executable, str(script_path("scripts/predict_sex.py")), str(self.vcf_path)],
+                    command=[sys.executable, str(script_path("scripts/predict_sex.py")), str(self.subject_vcf_path)],
                     outputs=[PROJECT_ROOT / "outputs" / "sex_prediction.json"],
                 ),
                 PipelineStage(
                     name="extract_hirisplex_dosages",
-                    command=[sys.executable, str(script_path("scripts/extract_hirisplex_snps.py")), str(self.vcf_path)],
+                    command=[sys.executable, str(script_path("scripts/extract_hirisplex_snps.py")), str(self.subject_vcf_path)],
                     outputs=[PROJECT_ROOT / "outputs" / "hirisplex_dosages.csv"],
                 ),
                 PipelineStage(
@@ -279,6 +349,23 @@ class PipelineController:
                     ],
                 ),
                 PipelineStage(
+                    name="final_forensic_render",
+                    command=[
+                        sys.executable,
+                        str(script_path("scripts/final_forensic_render.py")),
+                        "--subject-vcf",
+                        str(self.subject_vcf_path),
+                    ],
+                    outputs=[
+                        PROJECT_ROOT / "outputs" / "final_colourised_face.png",
+                        PROJECT_ROOT / "outputs" / "final_composite.png",
+                        PROJECT_ROOT / "outputs" / "final_composite.pdf",
+                        PROJECT_ROOT / "outputs" / "confidence_panel.png",
+                        PROJECT_ROOT / "outputs" / "probability_panel.png",
+                        PROJECT_ROOT / "outputs" / "final_render_validation.json",
+                    ],
+                ),
+                PipelineStage(
                     name="qc_report",
                     command=[sys.executable, str(script_path("scripts/generate_qc_report.py"))],
                     outputs=[
@@ -343,6 +430,7 @@ class PipelineController:
         start = time.perf_counter()
         self._logger.info("Starting stage: %s", stage.name)
         self._logger.info("Command: %s", " ".join(stage.command))
+        self._write_run_state(current_stage=stage.name)
         result = self._run_command(stage.command)
         self._log_stage_output(result.stdout, result.stderr)
         if result.returncode != 0:
@@ -374,13 +462,16 @@ class PipelineController:
         if stage.name == "ancestry_superpopulation" and self.skip_stage2:
             compat_path = self._write_stage2_compat_from_stage1()
             mirror_files([compat_path], self.output_dir)
+        self._completed_stages.append(stage.name)
+        self._write_run_state(current_stage=stage.name, completed_stages=list(self._completed_stages))
 
     def _run_optional_dry_run_stage(self, stage: PipelineStage) -> None:
         self._logger.info("Planned stage: %s", stage.name)
         self._logger.info("Command: %s", " ".join(stage.command))
 
     def run(self) -> dict[str, Any]:
-        ensure_preflight(self.vcf_path, self.config_path, self.output_dir)
+        ensure_preflight(self.source_vcf_path, self.config_path, self.output_dir)
+        self._write_run_state(current_stage=None, completed_stages=[], error=None)
 
         if self.dry_run:
             self._logger.info("Dry run enabled; validating execution order only.")
@@ -403,6 +494,7 @@ class PipelineController:
         except Exception as exc:
             self._logger.error("Pipeline failed in stage %s: %s", current_stage, exc)
             self._record_failure(current_stage, str(exc))
+            self._write_run_state(current_stage=current_stage, completed_stages=list(completed), error=str(exc), error_stage=current_stage)
             raise
 
         total_runtime = time.perf_counter() - run_started
@@ -418,7 +510,7 @@ class PipelineController:
             "status": "success",
             "completed_stages": completed,
             "total_runtime_seconds": round(total_runtime, 2),
-            "final_output": str(self.output_dir / "pigmentation_applied_face.png"),
+            "final_output": str(self.output_dir / "final_composite.png"),
             "qc_report": str(qc_report_path),
             "overall_reliability_score": overall_reliability,
         }
@@ -428,6 +520,7 @@ class PipelineController:
         self._logger.info("Final output: %s", summary["final_output"])
         self._logger.info("QC report: %s", summary["qc_report"])
         self._logger.info("Overall reliability score: %s", overall_reliability)
+        self._write_run_state(current_stage="complete", completed_stages=list(completed), error=None)
         return summary
 
 
@@ -436,6 +529,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vcf", required=True, help="Path to the subject VCF input.")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR), help="Directory for final outputs (default: %(default)s).")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG), help="Path to config.yaml (default: %(default)s).")
+    parser.add_argument("--sample", help="Sample ID to extract from a merged VCF before running the pipeline.")
     parser.add_argument("--skip-stage2", action="store_true", help="Skip South Asian sub-classification.")
     parser.add_argument("--dry-run", action="store_true", help="Validate dependencies and execution order only.")
     return parser.parse_args()
@@ -447,6 +541,7 @@ def main() -> int:
         vcf_path=Path(args.vcf),
         output_dir=Path(args.output_dir),
         config_path=Path(args.config),
+        sample_id=args.sample,
         skip_stage2=args.skip_stage2,
         dry_run=args.dry_run,
     )

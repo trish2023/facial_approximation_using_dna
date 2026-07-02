@@ -1,0 +1,97 @@
+{
+  "traits_used": [
+    {
+      "trait": "xiong2025_Chin_34_35",
+      "canonical_trait": "Chin_34_35",
+      "z_score": -1.3578,
+      "direction": "Decreased",
+      "magnitude": "Moderate",
+      "confidence_score": 2.7156,
+      "displacement_pixels": -6.789,
+      "landmarks": [
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "trait": "xiong2025_Chin_34_36",
+      "canonical_trait": "Chin_34_36",
+      "z_score": -1.185,
+      "direction": "Decreased",
+      "magnitude": "Moderate",
+      "confidence_score": 2.6498,
+      "displacement_pixels": -5.9251,
+      "landmarks": [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "trait": "xiong2025_Chin_35_36",
+      "canonical_trait": "Chin_35_36",
+      "z_score": -1.7888,
+      "direction": "Decreased",
+      "magnitude": "Moderate",
+      "confidence_score": 4.0,
+      "displacement_pixels": -8.9442,
+      "landmarks": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "trait": "xiong2025_Lowercheek_37_38",
+      "canonical_trait": "Lowercheek_37_38",
+      "z_score": 0.56,
+      "direction": "Increased",
+      "magnitude": "Mild",
+      "confidence_score": 0.56,
+      "displacement_pixels": 2.8,
+      "landmarks": [
+        2,
+        3,
+        4,
+        12,
+        13,
+        14
+      ]
+    }
+  ],
+  "landmarks_modified": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "max_displacement": 15.3285,
+  "mean_displacement": 8.7871,
+  "notes": [
+    "Only jawline and chin landmarks are modified because the current validated GWAS-derived morphology traits in this pipeline cover chin and lower-cheek variation only.",
+    "This displacement mapping reflects the currently available morphology traits and is designed to remain conservative outside the lower facial contour.",
+    "Future facial GWAS releases can extend this mapping to eyes, nose, mouth, forehead, and eyebrows once validated regional traits become available."
+  ]
+}

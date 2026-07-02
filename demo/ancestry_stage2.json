@@ -1,0 +1,10 @@
+{
+    "subject_id": "HG01583",
+    "predicted_label": "IndoAryan-proxy",
+    "probabilities": {
+        "Dravidian-proxy": 0.24,
+        "IndoAryan-proxy": 0.76
+    },
+    "ani_proportion": 0.76,
+    "asi_proportion": 0.24
+}

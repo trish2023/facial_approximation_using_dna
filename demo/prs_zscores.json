@@ -1,0 +1,26 @@
+{
+  "xiong2025_Chin_34_35": {
+    "prs": -0.14606000000000002,
+    "z_score": -1.3577954533421708,
+    "interpretation": "Moderate",
+    "alpha_used": 0.76
+  },
+  "xiong2025_Chin_34_36": {
+    "prs": -0.14843,
+    "z_score": -1.1850282530794252,
+    "interpretation": "Moderate",
+    "alpha_used": 0.76
+  },
+  "xiong2025_Chin_35_36": {
+    "prs": -0.2144,
+    "z_score": -1.7888440948669517,
+    "interpretation": "Moderate",
+    "alpha_used": 0.76
+  },
+  "xiong2025_Lowercheek_37_38": {
+    "prs": 0.0,
+    "z_score": 0.5600029499679515,
+    "interpretation": "Mild",
+    "alpha_used": 0.76
+  }
+}

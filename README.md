@@ -49,44 +49,73 @@ VCF (SNP genotypes)
 └── README.md
 ```
 
-## How to Run & Demo the Current Pipeline
+## How to Run & Demo the Full Pipeline
 
-The current working pipeline covers Data Preparation, Ancestry Inference, and HIrisPlex SNP Extraction.
+The full demo now runs from a VCF input all the way to the final composite image.
 
-### 1. Ancestry Inference & Population Structure
+### 1. Prepare the subject VCF
 
-**Prepare the Data (PCA via PLINK):**
+If you already have a subject-specific VCF, you can use it directly.
+
+If you have a merged VCF and want to extract one sample:
 ```bash
-./scripts/pca_prep.sh
+python scripts/make_subject_vcf.py --sample HG01583 --merged-vcf data/processed/1kg_SAS_EUR_merged.vcf.gz --output data/processed/subject_hirisplex.vcf
 ```
-*(Performs QC, LD Pruning, and calculates top 20 PCs on the 1000 Genomes dataset.)*
 
-**Run Clustering Experiments:**
+### 2. Run the full end-to-end pipeline
+
 ```bash
-python scripts/clustering_experiments.py
-python scripts/clustering_experiments_advanced.py
+python run_pipeline.py --vcf data/processed/subject_hirisplex.vcf
 ```
-*(Generates t-SNE/UMAP plots and silhouette scores comparing K-Means and GMM across populations. Check `outputs/experiments_advanced/` for results.)*
 
-**Run Ancestry Prediction (Random Forest):**
+If you started from a merged VCF and want the pipeline to extract the sample first:
 ```bash
-python scripts/stage2_random_forest.py
+python run_pipeline.py --vcf data/processed/1kg_SAS_EUR_merged.vcf.gz --sample HG01583
 ```
-*(Trains a Random Forest classifier on genomic dosages and predicts ancestry proportions (e.g., ANI/ASI) for a subject. Output is saved to `outputs/ancestry_stage2.json`.)*
 
-### 2. HIrisPlex Phenotype Preparation
+This single command executes:
+1. ancestry superpopulation classification
+2. Stage 2 ancestry sub-classification
+3. sex prediction
+4. HIrisPlex SNP extraction
+5. HIrisPlex phenotype prediction
+6. pigmentation uncertainty scoring
+7. morphology PRS scoring
+8. morphology trait normalisation
+9. template selection
+10. landmark detection
+11. landmark displacement mapping
+12. Delaunay warping
+13. pigmentation rendering
+14. final forensic composite generation
+15. QC report generation
 
-**Extract a Subject from the Merged VCF:**
+### 3. Final output files
+
+Look in `outputs/` for:
+- `final_composite.png`
+- `final_composite.pdf`
+- `final_colourised_face.png`
+- `qc_report.json`
+- `qc_report.md`
+- `pipeline.log`
+
+## Dashboard UI
+
+Launch the local dashboard to watch the pipeline and inspect every stage:
+
 ```bash
-python scripts/make_subject_vcf.py --sample HG01583
+python scripts/dashboard_server.py --port 8501
 ```
-*(Scans the massive 1000G merged VCF using Python/gzip and quickly extracts only the 41 HIrisPlex SNPs for the specified subject into `data/processed/subject_hirisplex.vcf`.)*
 
-**Process Subject Dosages & Handle Strand Flips:**
-```bash
-python scripts/extract_hirisplex_snps.py data/processed/subject_hirisplex.vcf
-```
-*(Parses the subject VCF, maps alleles against the HIrisPlex template, corrects for Watson-Crick strand flips, checks coverage, and outputs `outputs/hirisplex_dosages.csv`.)*
+Then open `http://127.0.0.1:8501` in your browser.
+
+The dashboard shows:
+- a run form for selecting the VCF and sample
+- live stage-by-stage pipeline status
+- verification checks for each expected artifact
+- the pipeline log tail
+- the final composite preview
 
 ## Key Data Sources
 

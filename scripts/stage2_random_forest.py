@@ -29,7 +29,7 @@ def main():
     
     print("[INFO] Starting GridSearchCV...")
     rf = RandomForestClassifier(random_state=42, class_weight='balanced')
-    grid = GridSearchCV(rf, param_grid, cv=5, n_jobs=-1)
+    grid = GridSearchCV(rf, param_grid, cv=5, n_jobs=1)
     grid.fit(X, y)
     
     print(f"[OK] Best params: {grid.best_params_}")
